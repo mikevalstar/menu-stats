@@ -20,6 +20,8 @@ the graphs in a popup. This project fills that gap.
 - Themed by the active Omarchy theme, sized by the shell's font scale.
 - Read `/proc` and `/sys` directly from QML. No helper daemons, no polling
   scripts, nothing running when the panel is closed beyond the bar sampler.
+  The one exception is `nvidia-smi` for NVIDIA GPUs, which have no sysfs
+  utilisation counter.
 
 ## Non-goals
 
@@ -29,9 +31,9 @@ the graphs in a popup. This project fills that gap.
 
 ## Status
 
-Roughed in. A CPU icon sits in the centre of the bar and opens a flyout with
-usage, per-core meters, and load average. No graphs yet. See
-[docs/widget.md](docs/widget.md) for what is there and what is next.
+MVP in progress. A configurable strip of CPU, memory, GPU, network, disk,
+and sensor items with sparkline, meter, or text styles, a flyout page per
+item, and an in-flyout config page. See [docs/widget.md](docs/widget.md).
 
 Research and reference material is in `inspiration/`, which is git-ignored
 and documented in [inspiration/README.md](inspiration/README.md).

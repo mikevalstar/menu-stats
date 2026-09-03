@@ -38,12 +38,23 @@ per metric.
 
 - Install for development by symlinking the repo into the user plugin dir:
   `ln -s "$PWD" ~/.config/omarchy/plugins/<plugin-id>`.
+- Run `dev/harness.sh` first. It loads the widget and the service in a
+  throwaway Quickshell instance with a mock bar, prints QML errors and
+  sampler output, and never touches the live shell.
 - Validate the manifest against an export that excludes `inspiration/`; the
   validator rejects symlinks and the reference clones contain some. The
   exact commands are in [docs/quickshell.md](docs/quickshell.md).
 - Enable it in the bar with `omarchy plugin enable <plugin-id> --section center`.
-- Saved changes hot-reload. If they do not, run
-  `omarchy-shell shell rescanPlugins`.
+- The shell's plugin watcher is `inotifywait -r` on the plugins dir and does
+  not follow the symlink, so edits in the repo do not hot-reload. Reload
+  with `omarchy-shell shell rescanPlugins`.
+- Adding a new QML file needs `omarchy-restart-shell`, not a rescan. Qt
+  6.11's type loader caches directory listings and reports a file it has
+  not seen as "File name case mismatch" until the process restarts.
+- Never rescan or restart the shell while the screen is locked. The lock
+  service loses its surfaces on plugin reload and Quickshell aborts on
+  "Tried to show lockscreen surfaces without active lock". The session
+  stays locked and the shell restarts itself, but the crash is avoidable.
 - Check the shell log for QML errors when a widget goes blank:
   `qs log -p /usr/share/omarchy/shell -t 100`.
 
