@@ -2,19 +2,31 @@
   "schemaVersion": 1,
   "id": "valstar.menu-stats",
   "name": "Menu Stats",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Mike Valstar",
   "license": "MIT",
   "description": "iStat Menus-style live system graphs for the Omarchy bar",
-  "kinds": ["bar-widget"],
+  "kinds": ["service", "bar-widget"],
+  "keepLoaded": true,
   "entryPoints": {
+    "service": "StatsService.qml",
     "barWidget": "Widget.qml"
   },
   "barWidget": {
     "displayName": "Menu Stats",
-    "description": "CPU, memory, and network activity with a detail panel per metric",
+    "description": "A configurable strip of CPU, memory, GPU, network, disk, and sensor graphs with a detail page per item",
     "category": "System",
     "allowMultiple": false,
-    "defaultSection": "center"
+    "defaultSection": "center",
+    "defaults": {
+      "intervalMs": 1000,
+      "historyLength": 60,
+      "showIcons": true
+    },
+    "schema": [
+      { "key": "intervalMs", "type": "integer", "label": "Sampling interval (ms)", "min": 250, "max": 10000, "step": 250, "defaultValue": 1000 },
+      { "key": "historyLength", "type": "integer", "label": "History (samples)", "min": 20, "max": 600, "step": 10, "defaultValue": 60 },
+      { "key": "showIcons", "type": "boolean", "label": "Icons in the bar", "defaultValue": true }
+    ]
   }
 }

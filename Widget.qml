@@ -2,206 +2,272 @@ import QtQuick
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
-import "Cpu.js" as Cpu
+import "ui"
+import "lib/Metrics.js" as Metrics
 
-// Bar icon plus a detail flyout for CPU. The root is the shell's Panel base
-// so the bar can summon, hide, and toggle it over IPC and coordinate it with
-// the other popups. Sampling runs from here on a fixed timer whether or not
-// the flyout is open, because the bar readout will need history later.
+// The bar entry: a strip of metric items and the flyout with a page per
+// item plus the config page. Sampling lives in StatsService.qml; this file owns
+// settings, layout, and navigation. The root is the shell's Panel base so
+// the bar can summon, hide, and toggle it over IPC.
 Panel {
   id: root
   moduleName: "valstar.menu-stats"
   ipcTarget: moduleName
 
   readonly property color foreground: bar ? bar.barForeground : Color.foreground
-  readonly property color dim: Qt.darker(foreground, 1.5)
+  readonly property color panelForeground: Color.popups.text
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property string cpuGlyph: "󰻠"
-  readonly property int sampleIntervalMs: 1000
 
-  // Sampler state. `previous` is the last /proc/stat snapshot from
-  // Cpu.parseStat; usage is the delta against it, so nothing is reported
-  // until the second sample lands.
-  property var previous: null
-  property real usage: 0
-  property var coreUsage: []
-  property string cpuModel: ""
-  property string loadAverage: ""
+  // ------------------------------------------------------------ settings
 
-  readonly property int usagePercent: Math.round(usage * 100)
-  readonly property int coreCount: coreUsage.length
+  readonly property var items: Metrics.normalizeItems(setting("items", Metrics.DEFAULT_ITEMS))
+  readonly property int intervalMs: Metrics.clampInt(setting("intervalMs", Metrics.LIMITS.intervalMs.fallback), Metrics.LIMITS.intervalMs)
+  readonly property int historyLength: Metrics.clampInt(setting("historyLength", Metrics.LIMITS.historyLength.fallback), Metrics.LIMITS.historyLength)
+  readonly property bool showIcons: setting("showIcons", true) !== false
 
-  implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
+  // Merge a patch into this widget's shell.json entry. The shell writes the
+  // file, the bar re-reads it, and `settings` comes back through the host.
+  // Setting it locally first keeps the UI from lagging that round trip.
+  function persist(patch: var): void {
+    if (!bar || !bar.shell || typeof bar.shell.updateEntryInline !== "function") return
+    var entry = { id: moduleName }
+    for (var key in settings) if (key !== "id") entry[key] = settings[key]
+    for (var name in patch) entry[name] = patch[name]
+    settings = entry
+    bar.shell.updateEntryInline(moduleName, entry)
+  }
 
-  function applyStat(text: string): void {
-    var snapshot = Cpu.parseStat(text)
-    if (!snapshot) return
-    if (previous) {
-      var result = Cpu.usageBetween(previous, snapshot)
-      usage = result.total
-      coreUsage = result.cores
+  // ------------------------------------------------------------ service
+
+  // serviceFor reads the shell's service table, so this re-evaluates when a
+  // service loads. ensureService must stay out of the binding: it writes
+  // that same table, which would make the binding depend on itself.
+  readonly property var service: bar && bar.shell ? bar.shell.serviceFor(moduleName) : null
+
+  onBarChanged: {
+    if (bar && bar.shell && !bar.shell.serviceFor(moduleName)
+        && typeof bar.shell.ensureService === "function") bar.shell.ensureService(moduleName)
+  }
+
+  function samplerFor(metric: string): var {
+    return service ? service.samplerFor(metric) : null
+  }
+
+  function pushConfig(): void {
+    if (!service) return
+    service.configure(intervalMs, historyLength, Metrics.neededMetrics(items))
+  }
+
+  onServiceChanged: pushConfig()
+  onItemsChanged: pushConfig()
+  onIntervalMsChanged: pushConfig()
+  onHistoryLengthChanged: pushConfig()
+  Component.onCompleted: pushConfig()
+
+  // ------------------------------------------------------------ navigation
+
+  property string page: "metric"
+  property int pageIndex: 0
+  readonly property int safeIndex: Math.max(0, Math.min(pageIndex, items.length - 1))
+  readonly property var currentItem: items.length > 0 ? items[safeIndex] : null
+
+  function openItem(index: int): void {
+    pageIndex = index
+    page = items.length > 0 ? "metric" : "config"
+    open()
+  }
+
+  function openConfig(): void {
+    page = "config"
+    open()
+  }
+
+  function showItem(index: int): void {
+    pageIndex = index
+    page = "metric"
+  }
+
+  function back(): void {
+    if (page === "config" && items.length > 0) page = "metric"
+    else close()
+  }
+
+  function stepItem(delta: int): void {
+    var count = items.length
+    if (count === 0 || page !== "metric") return
+    showItem((safeIndex + delta + count) % count)
+  }
+
+  // Top processes are sampled only while a CPU or memory page is showing.
+  readonly property bool wantsProcesses: opened && page === "metric" && currentItem !== null
+    && (currentItem.metric === "cpu" || currentItem.metric === "memory")
+
+  Binding {
+    target: root.service ? root.service.processes : null
+    property: "enabled"
+    value: root.wantsProcesses
+  }
+
+  Binding {
+    target: root.service ? root.service.processes : null
+    property: "sortBy"
+    value: root.currentItem && root.currentItem.metric === "memory" ? "memory" : "cpu"
+  }
+
+  // Hotkey and script surface, separate from the bar's own summon target:
+  //   omarchy-shell valstar.menu-stats.nav showItem 2
+  //   omarchy-shell valstar.menu-stats.nav showConfig
+  IpcHandler {
+    target: root.moduleName + ".nav"
+
+    function showItem(index: string): void { root.openItem(parseInt(index, 10) || 0) }
+    function showConfig(): void { root.openConfig() }
+    function next(): void { root.open(); root.stepItem(1) }
+    function previous(): void { root.open(); root.stepItem(-1) }
+    function hide(): void { root.close() }
+  }
+
+  // ------------------------------------------------------------ strip
+
+  implicitWidth: strip.implicitWidth
+  implicitHeight: bar ? bar.barSize : Style.bar.sizeHorizontal
+
+  Row {
+    id: strip
+    anchors.centerIn: parent
+    spacing: 0
+
+    Repeater {
+      model: root.items
+      StripItem {
+        required property var modelData
+        required property int index
+        bar: root.bar
+        item: modelData
+        sampler: root.service ? root.service.samplerFor(modelData.metric) : null
+        showIcon: root.showIcons
+        active: root.opened && root.page === "metric" && root.safeIndex === index
+        onPressed: function(button) {
+          if (button === Qt.RightButton) root.openConfig()
+          else if (root.opened && root.page === "metric" && root.safeIndex === index) root.close()
+          else root.openItem(index)
+        }
+      }
     }
-    previous = snapshot
-  }
 
-  // ------------------------------------------------------------ sampling
-
-  FileView {
-    id: statFile
-    path: "/proc/stat"
-    printErrors: false
-    onLoaded: root.applyStat(text())
-  }
-
-  FileView {
-    id: loadFile
-    path: "/proc/loadavg"
-    printErrors: false
-    onLoaded: root.loadAverage = Cpu.parseLoadAverage(text())
-  }
-
-  FileView {
-    path: "/proc/cpuinfo"
-    printErrors: false
-    onLoaded: root.cpuModel = Cpu.parseModelName(text())
-  }
-
-  Timer {
-    interval: root.sampleIntervalMs
-    running: true
-    repeat: true
-    onTriggered: {
-      statFile.reload()
-      if (root.opened) loadFile.reload()
-    }
-  }
-
-  onOpenedChanged: if (opened) loadFile.reload()
-
-  // ------------------------------------------------------------ bar icon
-
-  BarIconButton {
-    id: button
-    anchors.fill: parent
-    bar: root.bar
-    text: root.cpuGlyph
-    active: root.opened
-    tooltipText: "CPU " + root.usagePercent + "%"
-    onPressed: function(b) {
-      if (b === Qt.LeftButton) root.toggle()
+    // With nothing configured the strip still needs something to click.
+    BarIconButton {
+      visible: root.items.length === 0
+      bar: root.bar
+      text: "󰒓"
+      active: root.opened
+      tooltipText: "Menu Stats: nothing configured"
+      onPressed: root.openConfig()
     }
   }
 
   // ------------------------------------------------------------ flyout
 
-  component StatRow: Item {
-    property string label: ""
-    property string value: ""
-
-    width: parent ? parent.width : implicitWidth
-    implicitHeight: labelText.implicitHeight
-
-    Text {
-      id: labelText
-      anchors.left: parent.left
-      textFormat: Text.PlainText
-      text: parent.label
-      color: root.dim
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.body
-    }
-
-    Text {
-      anchors.right: parent.right
-      textFormat: Text.PlainText
-      text: parent.value
-      color: root.foreground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.body
-    }
-  }
-
   KeyboardPanel {
     id: popup
-    anchorItem: button
+    anchorItem: strip
     owner: root
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: popup.fittedContentWidth(Style.space(300))
+    contentWidth: popup.fittedContentWidth(Style.space(392))
     contentHeight: popup.fittedContentHeight(content.implicitHeight)
 
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      onCloseRequested: root.close()
+      onCloseRequested: root.back()
       onTabRequested: function(direction) { root.switchPanel(direction) }
+      onMoveRequested: function(dx, dy) { if (dx !== 0) root.stepItem(dx) }
+      onTextKey: function(text) {
+        if (text === "," || text === "s") root.page = "config"
+      }
 
       Column {
         id: content
         width: parent.width
         spacing: Style.spacing.lg
 
-        PanelHero {
-          title: "CPU"
-          meta: root.cpuModel
-          detail: root.usagePercent + "%"
-          foreground: root.foreground
-          fontFamily: root.fontFamily
-          iconComponent: Component {
-            Text {
-              text: root.cpuGlyph
-              color: root.foreground
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.display
-            }
-          }
-        }
-
-        PanelSeparator { foreground: root.foreground }
-
-        PanelSectionHeader {
-          text: "Cores"
-          foreground: root.foreground
-          fontFamily: root.fontFamily
-        }
-
-        // One thin meter per core, filled from the bottom.
-        Row {
-          id: coreRow
+        Item {
           width: parent.width
-          spacing: Style.space(2)
-          readonly property real meterWidth: root.coreCount > 0
-            ? (width - spacing * (root.coreCount - 1)) / root.coreCount : 0
+          implicitHeight: Math.max(tabs.implicitHeight, gear.implicitHeight)
 
-          Repeater {
-            model: root.coreUsage
-            delegate: Item {
-              required property real modelData
-              width: coreRow.meterWidth
-              height: Style.space(28)
+          Row {
+            id: tabs
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.spacing.xs
 
-              Rectangle {
-                anchors.fill: parent
-                color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.08)
-              }
-
-              Rectangle {
-                anchors.bottom: parent.bottom
-                width: parent.width
-                height: Math.max(1, parent.height * modelData)
-                color: root.foreground
+            Repeater {
+              model: root.items
+              Button {
+                required property var modelData
+                required property int index
+                readonly property var metric: Metrics.metric(modelData.metric)
+                iconText: metric ? metric.glyph : ""
+                tooltipText: metric ? metric.name : ""
+                selected: root.page === "metric" && root.safeIndex === index
+                foreground: root.panelForeground
+                fontFamily: root.fontFamily
+                onClicked: root.showItem(index)
               }
             }
           }
+
+          Button {
+            id: gear
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            iconText: "󰒓"
+            tooltipText: "Configure"
+            selected: root.page === "config"
+            foreground: root.panelForeground
+            fontFamily: root.fontFamily
+            onClicked: root.page = root.page === "config" && root.items.length > 0 ? "metric" : "config"
+          }
         }
 
-        PanelSeparator { foreground: root.foreground }
+        PanelSeparator { foreground: root.panelForeground }
 
-        StatRow { label: "Load average"; value: root.loadAverage }
-        StatRow { label: "Cores"; value: String(root.coreCount) }
+        Loader {
+          id: pageLoader
+          width: parent.width
+          sourceComponent: root.page === "config" || root.currentItem === null ? configPage : metricPage
+        }
       }
+    }
+  }
+
+  Component {
+    id: metricPage
+    MetricPage {
+      item: root.currentItem || ({ metric: "cpu", style: "graph" })
+      sampler: root.currentItem ? root.samplerFor(root.currentItem.metric) : null
+      processes: root.service ? root.service.processes : null
+      foreground: root.panelForeground
+      fontFamily: root.fontFamily
+    }
+  }
+
+  Component {
+    id: configPage
+    ConfigPage {
+      items: root.items
+      intervalMs: root.intervalMs
+      historyLength: root.historyLength
+      showIcons: root.showIcons
+      service: root.service
+      foreground: root.panelForeground
+      fontFamily: root.fontFamily
+      onItemsEdited: function(next) { root.persist({ items: next }) }
+      onIntervalEdited: function(value) { root.persist({ intervalMs: value }) }
+      onHistoryEdited: function(value) { root.persist({ historyLength: value }) }
+      onShowIconsEdited: function(value) { root.persist({ showIcons: value }) }
     }
   }
 }

@@ -88,13 +88,27 @@ Files that only need reading once, like `/proc/cpuinfo`, have no timer.
 
 ## Development loop
 
-The repo is symlinked into the user plugin directory, so saving a file is
-the deploy step:
+The repo is symlinked into the user plugin directory. Bar widget code is
+compiled once per shell process and kept across plugin rescans, so the
+loop after every edit is a restart, which takes about two seconds:
 
 ```
-ln -s "$PWD" ~/.config/omarchy/plugins/valstar.menu-stats
-omarchy-shell shell rescanPlugins
-omarchy plugin enable valstar.menu-stats --section center
+ln -s "$PWD" ~/.config/omarchy/plugins/valstar.menu-stats   # once
+omarchy plugin enable valstar.menu-stats --section center     # once
+omarchy-restart-shell                                         # after edits
+```
+
+The shell's plugin watcher does not follow the symlink, which is what we
+want: a watched checkout would trigger a full plugin reload on every save
+without actually reloading the widget.
+
+Before reloading the live shell, run the harness. It loads
+[Widget.qml](../Widget.qml) and [StatsService.qml](../StatsService.qml)
+in a private Quickshell instance with a mock bar, walks every page, and
+prints QML errors and sampler output:
+
+```
+dev/harness.sh
 ```
 
 The validator refuses symlinks anywhere under the folder, and the shallow
@@ -106,8 +120,7 @@ rsync -a --exclude inspiration --exclude .git ./ /tmp/menu-stats-export/
 omarchy plugin validate /tmp/menu-stats-export
 ```
 
-Saved QML hot-reloads. When a widget goes blank, the error is in the shell
-log:
+When a widget goes blank, the error is in the shell log:
 
 ```
 qs log -p /usr/share/omarchy/shell -t 100
@@ -120,8 +133,6 @@ omarchy-shell shell summon valstar.menu-stats
 omarchy-shell shell hide valstar.menu-stats
 ```
 
-or restart the shell outright with `omarchy-restart-shell`.
-
 ## Gotchas learned so far
 
 - `qs.Ui` and `qs.Commons` only resolve inside `omarchy-shell`. The widget
@@ -131,5 +142,20 @@ or restart the shell outright with `omarchy-restart-shell`.
 - The first sample of a delta metric has nothing to compare against.
   Report nothing until the second sample rather than a fake zero spike.
 - Reassigning a JS array property re-creates every `Repeater` delegate.
-  Fine for a handful of core meters; the history graphs will draw with
+  Fine for a handful of core meters; the history graphs draw with
   `Canvas` instead.
+- A file added to the plugin after the shell first read the directory
+  fails to load with "File name case mismatch". Qt 6.11's type loader
+  caches directory listings and `Qt.clearComponentCache()` does not clear
+  that cache. The restart covers it.
+- Settings from shell.json arrive as Qt lists and maps. `Array.isArray`
+  is false on them and array methods are missing, so structured settings
+  are round-tripped through JSON before use, as in
+  [Metrics.js](../lib/Metrics.js).
+- Reloading plugins while the screen is locked crashes the shell. The lock
+  service recovers by re-locking, and the session lock protocol keeps the
+  screen locked meanwhile, but do the reload after unlocking.
+- Non-visual sampler objects are `Scope` from Quickshell, which takes
+  children like an Item without being one. `Instantiator` over a JS array
+  is how a variable number of `FileView`s (one per GPU, per sensor) is
+  created, and `objectAt(i)` is how the sampler walks them.
