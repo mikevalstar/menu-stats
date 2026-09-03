@@ -7,7 +7,7 @@ iStat Menus, but for Omarchy.
 A shell plugin that puts a strip of live system graphs in the Omarchy bar.
 You choose what is in the strip: CPU, memory, GPU, network, disk, or any
 temperature or fan, each as a sparkline, a meter, or text. Clicking an item
-opens its detail page. A gear opens the settings.
+opens its detail page.
 
 Everything is read from `/proc` and `/sys` inside the shell. There are no
 daemons and no polling scripts. The only subprocesses are `nvidia-smi` for
@@ -25,7 +25,7 @@ the process table, and each runs only while something is showing it.
 ## Install
 
 ```
-omarchy plugin add <this repository> --enable
+omarchy plugin add https://github.com/mikevalstar/menu-stats.git --enable
 ```
 
 Or by hand: clone into `~/.config/omarchy/plugins/valstar.menu-stats`, run
