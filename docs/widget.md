@@ -62,8 +62,9 @@ and the detail rows the sampler provides. The sensors page lists every
 temperature and fan found, grouped, not only the one in the bar.
 
 The config page is where iStat's preferences live: the list of strip items
-with style and source pickers and move and remove buttons, an add row, and
-the sampling interval, history length, and icon toggle. Every change
+with style and source pickers and move and remove buttons; an add section
+with its own metric, style, and source pickers and a button that names what
+it will add; and the sampling interval, history length, and icon toggle. Every change
 persists immediately. See [settings.md](settings.md).
 
 Keyboard: Left and Right (or h and l) step between item pages, `,` opens

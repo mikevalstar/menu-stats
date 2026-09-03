@@ -22,7 +22,25 @@ Column {
   signal historyEdited(int value)
   signal showIconsEdited(bool value)
 
+  // The add section's draft. Changing the metric resets style and source,
+  // since neither carries over meaningfully.
   property string addMetric: "cpu"
+  property string addStyle: "graph"
+  property string addSource: ""
+  readonly property var addMetricInfo: Metrics.metric(addMetric)
+  readonly property string addSourceLabel: {
+    var options = sourceOptionsFor(addMetric)
+    for (var i = 0; i < options.length; i++) if (options[i].value === addSource) return options[i].label
+    return ""
+  }
+  readonly property string addSummary: (addMetricInfo ? addMetricInfo.name : addMetric)
+    + " as " + Metrics.styleLabel(addMetric, addStyle)
+    + (addMetricInfo && addMetricInfo.hasSources && addSourceLabel !== "" ? ", " + addSourceLabel : "")
+
+  onAddMetricChanged: {
+    addStyle = "graph"
+    addSource = ""
+  }
 
   readonly property color dim: Qt.darker(foreground, 1.4)
 
@@ -67,7 +85,9 @@ Column {
 
   function addItem(): void {
     var next = cloneItems()
-    next.push({ metric: addMetric, style: "graph" })
+    var item = { metric: addMetric, style: addStyle }
+    if (addSource !== "") item.source = addSource
+    next.push(item)
     itemsEdited(next)
   }
 
@@ -184,27 +204,62 @@ Column {
     }
   }
 
-  Row {
-    spacing: Style.spacing.sm
+  PanelSeparator { foreground: root.foreground }
 
-    Dropdown {
-      showLabel: false
-      implicitWidth: Style.space(160)
-      foreground: root.foreground
-      fontFamily: root.fontFamily
-      options: Metrics.metricOptions()
-      value: root.addMetric
-      onChanged: function(next) { root.addMetric = next }
-    }
+  PanelSectionHeader {
+    text: "Add to the bar"
+    foreground: root.foreground
+    fontFamily: root.fontFamily
+  }
 
-    Button {
-      text: "Add"
-      iconText: "+"
-      bordered: true
-      foreground: root.foreground
-      fontFamily: root.fontFamily
-      onClicked: root.addItem()
-    }
+  Text {
+    width: parent.width
+    textFormat: Text.PlainText
+    text: "Pick a metric, how it should look, and what it reads from. The same metric can be added more than once."
+    color: root.dim
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.bodySmall
+    wrapMode: Text.WordWrap
+  }
+
+  Dropdown {
+    label: "Metric"
+    implicitWidth: parent.width
+    foreground: root.foreground
+    fontFamily: root.fontFamily
+    options: Metrics.metricOptions()
+    value: root.addMetric
+    onChanged: function(next) { root.addMetric = next }
+  }
+
+  Dropdown {
+    label: "Style"
+    implicitWidth: parent.width
+    foreground: root.foreground
+    fontFamily: root.fontFamily
+    options: Metrics.stylesFor(root.addMetric)
+    value: root.addStyle
+    onChanged: function(next) { root.addStyle = next }
+  }
+
+  Dropdown {
+    visible: root.addMetricInfo ? root.addMetricInfo.hasSources : false
+    label: "Source"
+    implicitWidth: parent.width
+    foreground: root.foreground
+    fontFamily: root.fontFamily
+    options: root.sourceOptionsFor(root.addMetric)
+    value: root.addSource
+    onChanged: function(next) { root.addSource = next }
+  }
+
+  Button {
+    text: "Add " + root.addSummary
+    iconText: "+"
+    bordered: true
+    foreground: root.foreground
+    fontFamily: root.fontFamily
+    onClicked: root.addItem()
   }
 
   PanelSeparator { foreground: root.foreground }
