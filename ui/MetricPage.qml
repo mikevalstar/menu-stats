@@ -63,6 +63,7 @@ Column {
     color: root.foreground
     lineWidth: 1.5
     framed: true
+    mirrored: root.isRate
   }
 
   Item {
@@ -81,18 +82,17 @@ Column {
           required property int index
           spacing: Style.spacing.sm
 
-          Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width: Style.space(8)
-            height: Style.space(8)
-            color: index === 0 ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.35) : "transparent"
-            border.width: 1
-            border.color: index === 0 ? root.foreground : Qt.darker(root.foreground, 1.7)
+          Text {
+            textFormat: Text.PlainText
+            text: index === 0 ? "▲" : "▼"
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
           }
 
           Text {
             textFormat: Text.PlainText
-            text: modelData
+            text: modelData + (root.isRate ? "  " + Format.rate(index === 0 ? graph.effectiveMax : graph.effectiveMax2) : "")
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -113,7 +113,7 @@ Column {
     Text {
       anchors.right: parent.right
       textFormat: Text.PlainText
-      text: root.isRate ? "scale " + Format.rate(graph.effectiveMax)
+      text: root.isRate ? "scale per side"
         : (root.view && root.view.maxValue > 1 ? "scale " + Format.temperature(root.view.maxValue) + "C" : "last " + root.capacity + " samples")
       color: root.dim
       font.family: root.fontFamily

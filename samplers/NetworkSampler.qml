@@ -45,6 +45,7 @@ Scope {
           levels: [rates[name].down / peak, rates[name].up / peak],
           text: Format.rate(rates[name].down) + " ↓  " + Format.rate(rates[name].up) + " ↑",
           barText: Format.dualRate(rates[name].down, rates[name].up),
+          barLines: ["↓" + Format.rateShort(rates[name].down), "↑" + Format.rateShort(rates[name].up)],
           series: [down, up],
           seriesLabels: ["Download", "Upload"],
           bars: [],

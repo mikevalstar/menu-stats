@@ -71,6 +71,7 @@ Scope {
           levels: [rates[name].read / peak, rates[name].write / peak],
           text: Format.rate(rates[name].read) + " R  " + Format.rate(rates[name].write) + " W",
           barText: "R" + Format.rateShort(rates[name].read) + " W" + Format.rateShort(rates[name].write),
+          barLines: ["R" + Format.rateShort(rates[name].read), "W" + Format.rateShort(rates[name].write)],
           series: [read, write],
           seriesLabels: ["Read", "Write"],
           bars: [],

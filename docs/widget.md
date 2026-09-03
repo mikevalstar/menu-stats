@@ -33,10 +33,17 @@ The strip is a row of items from the `items` setting. Each item is a metric,
 a style, and optionally a source (an interface, a disk, a GPU, a sensor).
 Styles:
 
-- `graph`: a sparkline of recent history. Rate metrics draw two series,
-  down or read filled, up or write as a line.
+- `graph`: a sparkline of recent history. Rate metrics are mirrored the
+  way iStat draws them: download or read grows up from the centre line,
+  upload or write grows down, each on its own scale.
 - `meter`: a thin vertical level bar. Rate metrics show two.
-- `text`: the current value as fixed-width text.
+- `text`: the current value as fixed-width text. Rate metrics stack two
+  small lines, down above up.
+- `space`: disk only. One thin horizontal bar per mounted filesystem
+  showing how full it is, instead of throughput.
+
+History starts as a flat line of zeros so a fresh shell shows a full-width
+graph immediately rather than one growing in from the right.
 
 An optional glyph sits before each item. Left click opens the flyout on that
 item's page. Right click opens the config page. The item whose page is open

@@ -10,7 +10,11 @@ has:
   history maximum for rate metrics. Drives the meter style.
 - `text`: the short value for the text style, the tooltip, and the hero
   pill.
-- `series`: one or two arrays of history, newest last. Drives the graphs.
+- `series`: one or two arrays of history, newest last, zero-filled to the
+  history length from the first sample. Drives the graphs.
+- `barLines`: optional two short strings for the text style, shown stacked.
+- `usage`: optional list of `{ label, fraction, text }` for filesystem
+  bars; disk provides it.
 - `bars`: optional per-part levels, used by CPU for cores.
 - `meta`: a one-line description for the hero, such as the device name.
 - `details`: rows of `{ label, value }` for the page.

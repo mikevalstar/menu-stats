@@ -160,7 +160,7 @@ Column {
           implicitWidth: Style.space(112)
           foreground: root.foreground
           fontFamily: root.fontFamily
-          options: Metrics.STYLES
+          options: Metrics.stylesFor(row.modelData.metric)
           value: row.modelData.style
           onChanged: function(next) { root.replaceItem(row.index, { style: next }) }
         }

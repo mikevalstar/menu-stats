@@ -22,10 +22,18 @@ WidgetButton {
   readonly property color drawColor: active && useActiveColor ? activeColor : foreground
   readonly property string valueText: view ? view.text : (sampler && sampler.available === false ? "n/a" : "…")
   readonly property real graphHeight: barSize - Style.space(12)
+  readonly property var usage: view && view.usage ? view.usage : []
+  readonly property var barLines: view && view.barLines ? view.barLines : []
+
+  function usageTooltip(): string {
+    var parts = []
+    for (var i = 0; i < usage.length; i++) parts.push(usage[i].label + " " + usage[i].text)
+    return parts.join("   ")
+  }
 
   labelVisible: false
   hasVisualContent: true
-  tooltipText: (metric ? metric.name : "") + "  " + valueText
+  tooltipText: (metric ? metric.name : "") + "  " + (item.style === "space" && usage.length > 0 ? usageTooltip() : valueText)
   fixedWidth: content.implicitWidth + scaledHorizontalMargin * 2
 
   Row {
@@ -46,7 +54,8 @@ WidgetButton {
     Loader {
       anchors.verticalCenter: parent.verticalCenter
       sourceComponent: root.item.style === "meter" ? meterStyle
-        : root.item.style === "text" ? textStyle : graphStyle
+        : root.item.style === "text" ? (root.barLines.length === 2 ? twoLineTextStyle : textStyle)
+        : root.item.style === "space" ? spaceStyle : graphStyle
     }
   }
 
@@ -59,7 +68,57 @@ WidgetButton {
       capacity: root.capacity
       maxValue: root.view && root.view.maxValue !== undefined ? root.view.maxValue : (root.isRate ? 0 : 1)
       minScale: root.isRate ? 1024 : 1
+      mirrored: root.isRate
       color: root.drawColor
+    }
+  }
+
+  // Download above upload, at caption size so both fit the bar height.
+  Component {
+    id: twoLineTextStyle
+    Column {
+      spacing: 0
+      Repeater {
+        model: root.barLines
+        Text {
+          required property string modelData
+          textFormat: Text.PlainText
+          text: modelData
+          color: root.drawColor
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+          lineHeight: 0.9
+          renderType: Text.NativeRendering
+        }
+      }
+    }
+  }
+
+  // One thin horizontal bar per mounted filesystem, fullest first is not
+  // needed; mount order matches the page.
+  Component {
+    id: spaceStyle
+    Column {
+      spacing: Style.space(2)
+      Repeater {
+        model: root.usage.slice(0, 4)
+        Item {
+          required property var modelData
+          width: Style.space(40)
+          height: Style.space(3)
+
+          Rectangle {
+            anchors.fill: parent
+            color: Qt.rgba(root.drawColor.r, root.drawColor.g, root.drawColor.b, 0.15)
+          }
+
+          Rectangle {
+            width: parent.width * Math.max(0, Math.min(1, modelData.fraction))
+            height: parent.height
+            color: modelData.fraction > 0.9 ? root.activeColor : root.drawColor
+          }
+        }
+      }
     }
   }
 

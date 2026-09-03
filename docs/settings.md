@@ -29,7 +29,7 @@ missing.
   samples of every graph.
 - `showIcons`: glyph before each strip item.
 - `items`: the strip, in order. `metric` is one of `cpu`, `memory`, `gpu`,
-  `network`, `disk`, `sensor`. `style` is `graph`, `meter`, or `text`.
+  `network`, `disk`, `sensor`. `style` is `graph`, `meter`, or `text`, plus `space` for disk.
   `source` is optional and metric-specific; an unknown source falls back
   to the default. Unknown metrics or styles are dropped on read.
 
