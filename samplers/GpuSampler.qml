@@ -137,7 +137,10 @@ Scope {
       }
     }
     var primary = defaultCard()
-    if (primary !== "") out[""] = out[primary]
+    if (primary !== "") {
+      out[""] = out[primary]
+      options.unshift({ value: "", label: "Default: " + (cardObjects[primary].name || Gpu.driverLabel(cardObjects[primary].driver) + " " + primary) })
+    }
     histories = nextHistories
     sourceOptions = options
     data = out

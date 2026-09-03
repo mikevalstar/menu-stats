@@ -2,49 +2,69 @@
 
 iStat Menus, but for Omarchy.
 
-A shell plugin that puts live system activity in the Omarchy bar: CPU, memory,
-network, and later disk, GPU, and sensors. Compact, always-visible readouts in
-the bar with real history graphs, and a detail panel on click.
+![The bar strip: CPU graph, memory meter, GPU text, network graph, disk space, and a temperature](docs/screenshots/bar.png)
 
-## Goal
+A shell plugin that puts a strip of live system graphs in the Omarchy bar.
+You choose what is in the strip: CPU, memory, GPU, network, disk, or any
+temperature or fan, each as a sparkline, a meter, or text. Clicking an item
+opens its detail page. A gear opens the settings.
 
-On a Mac, iStat Menus gives you a glanceable strip of small graphs in the menu
-bar and a rich dropdown per metric. Nothing in the Omarchy ecosystem does the
-first half. Every existing plugin shows text or an icon in the bar and hides
-the graphs in a popup. This project fills that gap.
+Everything is read from `/proc` and `/sys` inside the shell. There are no
+daemons and no polling scripts. The only subprocesses are `nvidia-smi` for
+NVIDIA utilisation, `df` for free space, and a read of `/proc/*/stat` for
+the process table, and each runs only while something is showing it.
 
-## Scope
+## Screenshots
 
-- Bar widgets that draw sparklines or mini bar graphs inline, one per metric.
-- A detail panel per metric with history, breakdowns, and top processes.
-- Themed by the active Omarchy theme, sized by the shell's font scale.
-- Read `/proc` and `/sys` directly from QML. No helper daemons, no polling
-  scripts, nothing running when the panel is closed beyond the bar sampler.
-  The one exception is `nvidia-smi` for NVIDIA GPUs, which have no sysfs
-  utilisation counter.
+| CPU page | Network page |
+|---|---|
+| ![CPU page with history graph, per-core meters, and top processes](docs/screenshots/cpu-page.png) | ![Network page with download above and upload below](docs/screenshots/network-page.png) |
 
-## Non-goals
+![Settings page listing the strip items and the add section](docs/screenshots/config-page.png)
 
-- Replacing the Omarchy bar. This is a plugin for the stock shell.
-- Configuration UIs beyond what the plugin manifest schema gives for free.
-- Support for shells other than Omarchy's Quickshell shell.
+## Install
+
+```
+omarchy plugin add <this repository> --enable
+```
+
+Or by hand: clone into `~/.config/omarchy/plugins/valstar.menu-stats`, run
+`omarchy-shell shell rescanPlugins`, then
+`omarchy plugin enable valstar.menu-stats --section center`.
+
+An NVIDIA card needs `nvidia-smi` on the path for utilisation. AMD cards
+are read from sysfs. Intel shows frequency only.
+
+## Using it
+
+- Left click an item for its page. Right click, or the gear, for settings.
+- Left and Right step between pages, `,` opens settings, Escape goes back
+  and then closes.
+- Settings live inline on the widget's entry in `~/.config/omarchy/shell.json`,
+  so they survive reinstalls and can be edited by hand. See
+  [docs/settings.md](docs/settings.md).
+- Hotkeys can drive it over IPC:
+  `omarchy-shell valstar.menu-stats.nav showItem 0` or `showConfig`.
+
+## Metrics
+
+| Metric | Bar value | Page |
+|---|---|---|
+| CPU | busy fraction | history, per-core meters, top processes, frequency, load |
+| Memory | used fraction | history, breakdown, swap, top processes by memory |
+| GPU | busy percent | history, VRAM, temperature, power; one entry per card |
+| Network | download and upload, mirrored | history, per-interface rates and totals |
+| Disk | read and write, mirrored, or space used | history, filesystem usage, per-disk rates |
+| Sensor | one temperature or fan | history, every sensor found, grouped |
+
+## Docs
+
+Intent and design for each part is in [docs/](docs/README.md). Start with
+[docs/widget.md](docs/widget.md). Contributors and agents should read
+[AGENTS.md](AGENTS.md) for the development loop, which has a few
+non-obvious rules.
 
 ## Status
 
-MVP in progress. A configurable strip of CPU, memory, GPU, network, disk,
-and sensor items with sparkline, meter, or text styles, a flyout page per
-item, and an in-flyout config page. See [docs/widget.md](docs/widget.md).
-
-Research and reference material is in `inspiration/`, which is git-ignored
-and documented in [inspiration/README.md](inspiration/README.md).
-
-## Layout
-
-The plugin follows the Omarchy shell plugin contract: [manifest.json](manifest.json)
-declares a `bar-widget` kind and [Widget.qml](Widget.qml) is its entry
-point. The authoritative description of that contract is in the installed
-Omarchy source at `/usr/share/omarchy/shell/README.md` and
-`/usr/share/omarchy/shell/plugins/bar/README.md`.
-
-`docs/` holds the intent for each part and a primer on coding against
-Quickshell and the shell; start at [docs/README.md](docs/README.md).
+Working on Omarchy 4 with Quickshell 0.3. Not yet done: keyboard cursor in
+the settings page, process actions, Intel GPU utilisation.

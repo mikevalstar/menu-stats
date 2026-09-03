@@ -108,7 +108,10 @@ Scope {
     if (tempRows.length > 0) allRows = allRows.concat([{ header: "Temperatures" }], tempRows)
     if (fanRows.length > 0) allRows = allRows.concat([{ header: "Fans" }], fanRows)
     for (var k = 0; k < ids.length; k++) out[ids[k]].details = allRows
-    if (ids.length > 0) out[""] = out[ids[0]]
+    if (ids.length > 0) {
+      out[""] = out[ids[0]]
+      options.unshift({ value: "", label: "Default: " + readings[ids[0]].label })
+    }
     histories = nextHistories
     sourceOptions = options
     data = out
