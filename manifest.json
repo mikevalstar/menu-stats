@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "valstar.menu-stats",
+  "name": "Menu Stats",
+  "version": "0.1.0",
+  "author": "Mike Valstar",
+  "license": "MIT",
+  "description": "iStat Menus-style live system graphs for the Omarchy bar",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "Widget.qml"
+  },
+  "barWidget": {
+    "displayName": "Menu Stats",
+    "description": "CPU, memory, and network activity with a detail panel per metric",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}
