@@ -88,15 +88,19 @@ Files that only need reading once, like `/proc/cpuinfo`, have no timer.
 
 ## Development loop
 
-The repo is symlinked into the user plugin directory. The shell's watcher
-does not follow that symlink, so after saving a file reload by hand:
+The repo is symlinked into the user plugin directory. Bar widget code is
+compiled once per shell process and kept across plugin rescans, so the
+loop after every edit is a restart, which takes about two seconds:
 
 ```
 ln -s "$PWD" ~/.config/omarchy/plugins/valstar.menu-stats   # once
 omarchy plugin enable valstar.menu-stats --section center     # once
-omarchy-shell shell rescanPlugins                             # after edits
-omarchy-restart-shell                                         # after adding a file
+omarchy-restart-shell                                         # after edits
 ```
+
+The shell's plugin watcher does not follow the symlink, which is what we
+want: a watched checkout would trigger a full plugin reload on every save
+without actually reloading the widget.
 
 Before reloading the live shell, run the harness. It loads
 [Widget.qml](../Widget.qml) and [StatsService.qml](../StatsService.qml)
@@ -143,7 +147,11 @@ omarchy-shell shell hide valstar.menu-stats
 - A file added to the plugin after the shell first read the directory
   fails to load with "File name case mismatch". Qt 6.11's type loader
   caches directory listings and `Qt.clearComponentCache()` does not clear
-  that cache. Restart the shell.
+  that cache. The restart covers it.
+- Settings from shell.json arrive as Qt lists and maps. `Array.isArray`
+  is false on them and array methods are missing, so structured settings
+  are round-tripped through JSON before use, as in
+  [Metrics.js](../lib/Metrics.js).
 - Reloading plugins while the screen is locked crashes the shell. The lock
   service recovers by re-locking, and the session lock protocol keeps the
   screen locked meanwhile, but do the reload after unlocking.

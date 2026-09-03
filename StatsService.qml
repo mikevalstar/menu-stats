@@ -39,6 +39,11 @@ Scope {
     enabled: root.needed.sensor === true
     historyLength: root.historyLength
   }
+  // Only while a CPU or memory page is open; the widget flips `enabled`.
+  readonly property ProcessSampler processes: ProcessSampler {
+    intervalMs: Math.max(2000, root.intervalMs)
+    cores: root.cpu.data[""] ? root.cpu.data[""].bars.length : 1
+  }
 
   function configure(intervalMs: int, historyLength: int, needed: var): void {
     root.intervalMs = intervalMs

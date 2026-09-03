@@ -48,17 +48,28 @@ A tab row at the top with one glyph per strip item and a gear on the right.
 Below it, either a metric page or the config page.
 
 A metric page shows a hero (glyph, name, current value pill, a meta line
-such as the processor model), a large history graph, per-core meters for
-CPU, and a list of detail rows the sampler provides. The sensors page lists
-every sensor found, not only the one in the bar.
+such as the processor model), a framed history graph with a legend and its
+current scale, then whatever the metric has: per-core meters for CPU,
+filesystem usage bars for disk, a top-processes table for CPU and memory,
+and the detail rows the sampler provides. The sensors page lists every
+temperature and fan found, grouped, not only the one in the bar.
 
 The config page is where iStat's preferences live: the list of strip items
 with style and source pickers and move and remove buttons, an add row, and
 the sampling interval, history length, and icon toggle. Every change
 persists immediately. See [settings.md](settings.md).
 
-Escape on the config page returns to the metric page; Escape there closes.
-Tab and Shift+Tab switch to neighbouring bar panels.
+Keyboard: Left and Right (or h and l) step between item pages, `,` opens
+the config page, Escape goes back and then closes, Tab and Shift+Tab switch
+to neighbouring bar panels.
+
+Scripts and hotkeys reach the same navigation over IPC on the target
+`valstar.menu-stats.nav`, with `showItem <index>`, `showConfig`, `next`,
+`previous`, and `hide`:
+
+```
+omarchy-shell valstar.menu-stats.nav showItem 2
+```
 
 ## Sampling
 
@@ -72,8 +83,7 @@ the same service so the files are read once per tick.
 
 ## Not doing yet
 
-- Keyboard cursor navigation inside the flyout. Mouse only, apart from
-  Escape and Tab.
-- Top-process lists. They need `/proc/<pid>` walks and are a later step.
-- Disk space. It needs `statfs`, which no `/proc` file gives, so it waits
-  for a decision on a slow `df` subprocess.
+- Keyboard cursor inside the config page. Its controls are mouse only.
+- Per-process actions (kill, focus). The table is read-only.
+- Intel GPU utilisation. sysfs has only the frequency, which the page
+  shows, and no busy counter.

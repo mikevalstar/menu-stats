@@ -18,11 +18,38 @@ Scope {
   property var previous: null
   property real previousTime: 0
   property var histories: ({})
+  property var mounts: []
+  property real lastSpaceCheck: 0
+  readonly property int spaceIntervalMs: 30000
 
-  onEnabledChanged: if (!enabled) previous = null
+  onEnabledChanged: {
+    if (!enabled) previous = null
+    else if (Date.now() - lastSpaceCheck > spaceIntervalMs) refreshSpace()
+  }
 
   function sample() {
     diskstatsFile.reload()
+    if (Date.now() - lastSpaceCheck > spaceIntervalMs) refreshSpace()
+  }
+
+  // Free space needs statfs, which no /proc file provides, so this is one
+  // df call every 30 seconds while a disk item is in the strip.
+  function refreshSpace() {
+    lastSpaceCheck = Date.now()
+    if (!dfProcess.running) dfProcess.running = true
+  }
+
+  function usageRows() {
+    var rows = []
+    for (var i = 0; i < mounts.length; i++) {
+      var m = mounts[i]
+      rows.push({
+        label: m.target,
+        fraction: m.size > 0 ? m.used / m.size : 0,
+        text: Format.bytes(m.used) + " / " + Format.bytes(m.size)
+      })
+    }
+    return rows
   }
 
   function apply(text: string): void {
@@ -48,6 +75,7 @@ Scope {
           seriesLabels: ["Read", "Write"],
           bars: [],
           meta: name === "" ? "All disks" : name,
+          usage: usageRows(),
           details: detailsFor(name, rates, snapshot)
         }
       }
@@ -76,6 +104,15 @@ Scope {
       rows.push({ label: names[i], value: "R" + Format.rateShort(rates[names[i]].read) + " W" + Format.rateShort(rates[names[i]].write) })
     }
     return rows
+  }
+
+  Process {
+    id: dfProcess
+    command: ["df", "-B1", "--output=source,target,fstype,size,used"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.mounts = Disk.parseDf(text)
+    }
   }
 
   FileView {

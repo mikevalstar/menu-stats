@@ -94,59 +94,70 @@ Column {
 
   Repeater {
     model: root.items
-    Item {
+    Column {
       id: row
       required property var modelData
       required property int index
       readonly property var metric: Metrics.metric(modelData.metric)
 
       width: parent.width
-      implicitHeight: Style.spacing.controlHeight
+      spacing: Style.spacing.sm
 
-      Text {
-        id: nameText
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        width: Style.space(78)
-        textFormat: Text.PlainText
-        text: (row.metric ? row.metric.glyph + "  " + row.metric.name : row.modelData.metric)
-        color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.body
-        elide: Text.ElideRight
+      Item {
+        width: parent.width
+        implicitHeight: Math.max(nameText.implicitHeight, actions.implicitHeight)
+
+        Text {
+          id: nameText
+          anchors.left: parent.left
+          anchors.right: actions.left
+          anchors.rightMargin: Style.spacing.md
+          anchors.verticalCenter: parent.verticalCenter
+          textFormat: Text.PlainText
+          text: (row.metric ? row.metric.glyph + "  " + row.metric.name : row.modelData.metric)
+          color: root.foreground
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.body
+          font.bold: true
+          elide: Text.ElideRight
+        }
+
+        Row {
+          id: actions
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.spacing.xs
+
+          PanelActionButton {
+            iconText: "↑"
+            tooltipText: "Move left"
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onClicked: root.moveItem(row.index, -1)
+          }
+          PanelActionButton {
+            iconText: "↓"
+            tooltipText: "Move right"
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onClicked: root.moveItem(row.index, 1)
+          }
+          PanelActionButton {
+            iconText: "✕"
+            tooltipText: "Remove"
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onClicked: root.removeItem(row.index)
+          }
+        }
       }
 
       Row {
-        anchors.left: nameText.right
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
         spacing: Style.spacing.sm
-        layoutDirection: Qt.RightToLeft
 
-        PanelActionButton {
-          iconText: "✕"
-          tooltipText: "Remove"
-          foreground: root.foreground
-          fontFamily: root.fontFamily
-          onClicked: root.removeItem(row.index)
-        }
-        PanelActionButton {
-          iconText: "↓"
-          tooltipText: "Move right"
-          foreground: root.foreground
-          fontFamily: root.fontFamily
-          onClicked: root.moveItem(row.index, 1)
-        }
-        PanelActionButton {
-          iconText: "↑"
-          tooltipText: "Move left"
-          foreground: root.foreground
-          fontFamily: root.fontFamily
-          onClicked: root.moveItem(row.index, -1)
-        }
         Dropdown {
           showLabel: false
-          implicitWidth: Style.space(84)
+          implicitWidth: Style.space(112)
           foreground: root.foreground
           fontFamily: root.fontFamily
           options: Metrics.STYLES
@@ -156,13 +167,19 @@ Column {
         Dropdown {
           visible: row.metric ? row.metric.hasSources : false
           showLabel: false
-          implicitWidth: Style.space(118)
+          implicitWidth: Style.space(196)
           foreground: root.foreground
           fontFamily: root.fontFamily
           options: root.sourceOptionsFor(row.modelData.metric)
           value: row.modelData.source || ""
           onChanged: function(next) { root.replaceItem(row.index, { source: next }) }
         }
+      }
+
+      PanelSeparator {
+        visible: row.index < root.items.length - 1
+        foreground: root.foreground
+        strength: 0.08
       }
     }
   }
@@ -172,7 +189,7 @@ Column {
 
     Dropdown {
       showLabel: false
-      implicitWidth: Style.space(118)
+      implicitWidth: Style.space(160)
       foreground: root.foreground
       fontFamily: root.fontFamily
       options: Metrics.metricOptions()

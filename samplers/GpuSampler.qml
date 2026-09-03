@@ -121,6 +121,7 @@ Scope {
         { label: "Driver", value: obj.driver }
       ] : [
         { label: "Driver", value: obj.driver },
+        { label: "Frequency", value: obj.frequencyMhz > 0 ? obj.frequencyMhz + " MHz" : "n/a" },
         { label: "Usage", value: "not readable from sysfs" }
       ]
       out[card] = {
@@ -175,8 +176,13 @@ Scope {
       property real memoryTotal: 0
       property real temperatureMilli: 0
       property real powerMicro: 0
+      property int frequencyMhz: 0
 
       function sample() {
+        if (driver === "i915" || driver === "xe") {
+          intelFrequencyFile.reload()
+          return
+        }
         busyFile.reload()
         vramUsedFile.reload()
         vramTotalFile.reload()
@@ -202,6 +208,13 @@ Scope {
           var value = text().trim()
           if (value !== "") cardScope.name = value
         }
+      }
+
+      FileView {
+        id: intelFrequencyFile
+        path: "/sys/class/drm/" + cardScope.card + "/gt_cur_freq_mhz"
+        printErrors: false
+        onLoaded: cardScope.frequencyMhz = Gpu.parseMhz(text())
       }
 
       FileView {

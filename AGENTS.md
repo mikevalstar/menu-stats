@@ -45,12 +45,13 @@ per metric.
   validator rejects symlinks and the reference clones contain some. The
   exact commands are in [docs/quickshell.md](docs/quickshell.md).
 - Enable it in the bar with `omarchy plugin enable <plugin-id> --section center`.
-- The shell's plugin watcher is `inotifywait -r` on the plugins dir and does
-  not follow the symlink, so edits in the repo do not hot-reload. Reload
-  with `omarchy-shell shell rescanPlugins`.
-- Adding a new QML file needs `omarchy-restart-shell`, not a rescan. Qt
-  6.11's type loader caches directory listings and reports a file it has
-  not seen as "File name case mismatch" until the process restarts.
+- Bar widget code does not hot-reload at all: the shell keeps the compiled
+  component across rescans and only refreshes manifest metadata. After any
+  edit, run `omarchy-restart-shell` (about two seconds). The symlinked
+  checkout is deliberate: the plugin watcher does not follow it, so saves
+  do not trigger useless full plugin reloads.
+- A restart is also what clears Qt 6.11's cached directory listing, which
+  otherwise reports a newly added file as "File name case mismatch".
 - Never rescan or restart the shell while the screen is locked. The lock
   service loses its surfaces on plugin reload and Quickshell aborts on
   "Tried to show lockscreen surfaces without active lock". The session

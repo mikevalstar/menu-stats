@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "ui"
@@ -91,6 +92,41 @@ Panel {
     else close()
   }
 
+  function stepItem(delta: int): void {
+    var count = items.length
+    if (count === 0 || page !== "metric") return
+    showItem((safeIndex + delta + count) % count)
+  }
+
+  // Top processes are sampled only while a CPU or memory page is showing.
+  readonly property bool wantsProcesses: opened && page === "metric" && currentItem !== null
+    && (currentItem.metric === "cpu" || currentItem.metric === "memory")
+
+  Binding {
+    target: root.service ? root.service.processes : null
+    property: "enabled"
+    value: root.wantsProcesses
+  }
+
+  Binding {
+    target: root.service ? root.service.processes : null
+    property: "sortBy"
+    value: root.currentItem && root.currentItem.metric === "memory" ? "memory" : "cpu"
+  }
+
+  // Hotkey and script surface, separate from the bar's own summon target:
+  //   omarchy-shell valstar.menu-stats.nav showItem 2
+  //   omarchy-shell valstar.menu-stats.nav showConfig
+  IpcHandler {
+    target: root.moduleName + ".nav"
+
+    function showItem(index: string): void { root.openItem(parseInt(index, 10) || 0) }
+    function showConfig(): void { root.openConfig() }
+    function next(): void { root.open(); root.stepItem(1) }
+    function previous(): void { root.open(); root.stepItem(-1) }
+    function hide(): void { root.close() }
+  }
+
   // ------------------------------------------------------------ strip
 
   implicitWidth: strip.implicitWidth
@@ -139,7 +175,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: popup.fittedContentWidth(Style.space(380))
+    contentWidth: popup.fittedContentWidth(Style.space(392))
     contentHeight: popup.fittedContentHeight(content.implicitHeight)
 
     PanelKeyCatcher {
@@ -147,6 +183,7 @@ Panel {
       anchors.fill: parent
       onCloseRequested: root.back()
       onTabRequested: function(direction) { root.switchPanel(direction) }
+      onMoveRequested: function(dx, dy) { if (dx !== 0) root.stepItem(dx) }
       onTextKey: function(text) {
         if (text === "," || text === "s") root.page = "config"
       }
@@ -211,6 +248,7 @@ Panel {
     MetricPage {
       item: root.currentItem || ({ metric: "cpu", style: "graph" })
       sampler: root.currentItem ? root.samplerFor(root.currentItem.metric) : null
+      processes: root.service ? root.service.processes : null
       foreground: root.panelForeground
       fontFamily: root.fontFamily
     }

@@ -79,7 +79,8 @@ Scope {
     var options = []
     var nextHistories = {}
     var out = {}
-    var allRows = []
+    var tempRows = []
+    var fanRows = []
     for (var i = 0; i < ids.length; i++) {
       var id = ids[i]
       var reading = readings[id]
@@ -89,7 +90,7 @@ Scope {
       var barText = reading.type === "temp" ? Format.temperature(reading.value).padStart(4, " ") : String(Math.round(reading.value)).padStart(4, " ")
       var level = Sensors.level(reading.type, reading.value)
       options.push({ value: id, label: reading.label })
-      allRows.push({ label: reading.label, value: text })
+      ;(reading.type === "temp" ? tempRows : fanRows).push({ label: reading.label, value: text })
       out[id] = {
         level: level,
         levels: [level],
@@ -103,6 +104,9 @@ Scope {
         maxValue: reading.type === "temp" ? 100000 : 0
       }
     }
+    var allRows = []
+    if (tempRows.length > 0) allRows = allRows.concat([{ header: "Temperatures" }], tempRows)
+    if (fanRows.length > 0) allRows = allRows.concat([{ header: "Fans" }], fanRows)
     for (var k = 0; k < ids.length; k++) out[ids[k]].details = allRows
     if (ids.length > 0) out[""] = out[ids[0]]
     histories = nextHistories
@@ -170,6 +174,10 @@ Scope {
           readonly property string file: modelData
           readonly property string type: Sensors.channelType(file)
           property string label: ""
+          // The label file loads after the first value read. Reporting
+          // before it resolves would register the channel twice, once
+          // under its channel name and once under its label.
+          property bool labelResolved: false
           property real value: 0
           readonly property string id: chipScope.chipId !== "" ? Sensors.sensorId(chipScope.chipId, label, file) : ""
           readonly property string displayLabel: chipScope.chipId !== "" ? Sensors.displayLabel(chipScope.chipId, label, file) : ""
@@ -181,7 +189,11 @@ Scope {
           FileView {
             path: chipScope.path + "/" + channelScope.file.replace(/_input$/, "_label")
             printErrors: false
-            onLoaded: channelScope.label = text().trim()
+            onLoaded: {
+              channelScope.label = text().trim()
+              channelScope.labelResolved = true
+            }
+            onLoadFailed: channelScope.labelResolved = true
           }
 
           FileView {
@@ -192,13 +204,18 @@ Scope {
               var n = parseInt(text().trim(), 10)
               if (!isFinite(n)) return
               channelScope.value = n
-              root.report(channelScope.id, channelScope.type, channelScope.displayLabel, n)
+              channelScope.reportIfReady()
             }
           }
 
-          // Ids resolve after the chip name loads, which can be after the
-          // first input read. Re-report once the id is known.
-          onIdChanged: if (id !== "" && value !== 0) root.report(id, type, displayLabel, value)
+          function reportIfReady() {
+            if (labelResolved && id !== "" && value !== 0) root.report(id, type, displayLabel, value)
+          }
+
+          // The chip name and the label both load after the first value
+          // read, so report again once the id is final.
+          onIdChanged: reportIfReady()
+          onLabelResolvedChanged: reportIfReady()
         }
       }
     }

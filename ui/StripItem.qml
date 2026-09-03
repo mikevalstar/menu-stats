@@ -53,7 +53,7 @@ WidgetButton {
   Component {
     id: graphStyle
     Sparkline {
-      width: Style.space(44)
+      width: Style.space(48)
       height: root.graphHeight
       series: root.view ? root.view.series : []
       capacity: root.capacity
@@ -66,12 +66,12 @@ WidgetButton {
   Component {
     id: meterStyle
     Row {
-      spacing: Style.space(2)
+      spacing: Style.space(3)
       Repeater {
         model: root.view ? root.view.levels : [0]
         Meter {
           required property real modelData
-          width: Style.space(5)
+          width: Style.space(6)
           height: root.graphHeight
           level: modelData
           color: root.drawColor

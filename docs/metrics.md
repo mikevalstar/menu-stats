@@ -26,14 +26,20 @@ that metric, and `available`, false when the metric cannot be read here.
 | Network ([NetworkSampler.qml](../samplers/NetworkSampler.qml), [Network.js](../lib/Network.js)) | `/proc/net/dev` | bytes per second down and up | all physical, or one interface |
 | Disk ([DiskSampler.qml](../samplers/DiskSampler.qml), [Disk.js](../lib/Disk.js)) | `/proc/diskstats` | bytes per second read and written | all whole disks, or one |
 | Sensor ([SensorSampler.qml](../samplers/SensorSampler.qml), [Sensors.js](../lib/Sensors.js)) | `/sys/class/hwmon/*/{name,temp*,fan*}` | temperature over 100°C, fan speed over 6000 rpm | every temperature and fan channel |
+| Processes ([ProcessSampler.qml](../samplers/ProcessSampler.qml), [Processes.js](../lib/Processes.js)) | every `/proc/<pid>/stat` in one `cat` | CPU share of the whole machine since the last read, resident memory | none; sorted by CPU on the CPU page, by memory on the memory page |
+
+The process table is page-only: it samples every two seconds while a CPU
+or memory page is open and stops when it closes. The disk sampler adds a
+`usage` list of mounted filesystems from one `df` call every 30 seconds
+while a disk item is in the strip.
 
 ## Decisions
 
-- The GPU sampler is the one place a subprocess is allowed. NVIDIA exposes
-  no utilisation in sysfs, so when an `nvidia` card is present it runs one
-  `nvidia-smi` query per tick, and only while a GPU item is in the strip.
-  AMD is read from sysfs. Intel is detected but reports unavailable until
-  there is a sysfs signal worth using.
+- Subprocesses are allowed only where the kernel gives no file to read,
+  and each runs only while something is looking: `nvidia-smi` per tick for
+  NVIDIA utilisation, `df` every 30 seconds for free space, and one `cat`
+  of every `/proc/<pid>/stat` every two seconds for the process table.
+  AMD GPUs are read from sysfs. Intel reports only its frequency.
 - "All interfaces" sums physical interfaces only. Tunnels, bridges, and
   container interfaces carry traffic that already crossed a physical one.
 - "All disks" sums whole devices (`nvme*n*`, `sd*`, `vd*`, `mmcblk*`), not
