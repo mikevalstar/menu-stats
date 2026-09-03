@@ -40,6 +40,7 @@ and sensors, with a flyout page per item and an in-flyout config page.
 | [lib/](lib/) | Pure JS: parsers, formatting, history, the metric catalogue |
 | [ui/](ui/) | Sparkline, Meter, StripItem, MetricPage, ConfigPage, DetailRow |
 | [dev/harness.sh](dev/harness.sh) | Runs widget and service outside the shell with a mock bar |
+| [LICENSE](LICENSE), [preview.png](preview.png) | Required by the marketplace; see [docs/publishing.md](docs/publishing.md) |
 
 ## Plugin contract
 
